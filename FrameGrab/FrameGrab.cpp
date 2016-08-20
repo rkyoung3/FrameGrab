@@ -4,7 +4,10 @@
 * ChangeLog:
 * 0.0.1 - 8/11/2016 3:32:33 PM - Initial Version
 * 0.0.2 - 8/12/2016 5:22:19 PM - Filled in skeleton, corrected typos in code copied, and made added 
-		  code Unicode  complaint.
+*		  code Unicode  complaint.
+* 0.0.3 - 8/14/2016 2:34:38 PM - Failed attempt to add functionality
+* 0.0.4 - 8/15/2016 4:22:15 PM - Added capture file name based on date/time
+* 0.1.0 - 8/16/2016 3:38:58 PM - First beta version with basic functionality
 //**************************************************************************************************/
 
 
@@ -14,6 +17,18 @@
 #include <stdio.h>
 #include <windows.h>  
 #include <vfw.h>  
+#include <time.h>
+#include <wchar.h>
+#include <cwchar>
+#include <dshow.h>
+#include <vector>
+
+using namespace std;
+
+#define BLUE    0x0001
+#define GREEN   0x0002
+#define RED     0x0004
+#define GRAY    0x0007	
 
 //Remember to Link to vfw32 Library, gdi32 Library  
 
@@ -21,25 +36,99 @@
 //
 
 LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
+HWND hWindow;
 PBITMAPINFO CreateBitmapInfoStruct(HWND hwnd, HBITMAP hBmp);
 void CreateBMPFile(HWND hwnd, LPTSTR pszFile, PBITMAPINFO pbi, HBITMAP hBMP, HDC hDC);
 LPCTSTR szAppName = L"FrameGrab";
 LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
 PBITMAPINFO CreateBitmapInfoStruct(HWND hwnd, HBITMAP hBmp);
 void CreateBMPFile(HWND hwnd, LPTSTR pszFile, PBITMAPINFO pbi, HBITMAP hBMP, HDC hDC);
+
 HWND camhwnd;
+bool bCameraConnected = false;
 HDC hdc;
 HDC hdcMem;
 PAINTSTRUCT ps;
 HBITMAP hbm;
 RECT rc;
 
-//WinMain -- Main Window
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+
+
+#define MAX_LOADSTRING 100
+
+// Global Variables:
+HINSTANCE hInst;                                // current instance
+WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
+WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+
+												// Forward declarations of functions included in this code module:
+ATOM                MyRegisterClass(HINSTANCE hInstance);
+BOOL                InitInstance(HINSTANCE, int);
+LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+
+int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR    lpCmdLine, _In_ int nCmdShow)
 {
-	HWND hwnd;
+	UNREFERENCED_PARAMETER(hPrevInstance);
+	UNREFERENCED_PARAMETER(lpCmdLine);
+
+	// TODO: Place code here.
+
+	// Initialize global strings
+	LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
+	LoadStringW(hInstance, IDC_FRAMEGRAB, szWindowClass, MAX_LOADSTRING);
+	MyRegisterClass(hInstance);
+
+	// Perform application initialization:
+	if (!InitInstance(hInstance, nCmdShow))
+	{
+		return FALSE;
+	}
+
+	// HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_LABELINSPECTION));
+
+	int result;
+	// Get_DeviceInfo();
+	// result = enum_devices();
+
 	MSG msg;
-	WNDCLASS wc;
+
+	// Main message loop:
+	while (GetMessage(&msg, 0, 0, 0))
+	{
+		if (!IsDialogMessage(hWindow, &msg))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+	}
+	return (int)msg.wParam;
+}
+
+//
+//  FUNCTION: MyRegisterClass()
+//
+//  PURPOSE: Registers the window class.
+//
+ATOM MyRegisterClass(HINSTANCE hInstance)
+{
+	WNDCLASSEXW wcex;
+
+	wcex.cbSize = sizeof(WNDCLASSEX);
+
+	wcex.style = CS_HREDRAW | CS_VREDRAW;
+	wcex.lpfnWndProc = WndProc;
+	wcex.cbClsExtra = 0;
+	wcex.cbWndExtra = 0;
+	wcex.hInstance = hInstance;
+	wcex.hIcon = LoadIcon(GetModuleHandle(NULL), IDI_APPLICATION);
+	wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wcex.lpszMenuName = NULL;
+	wcex.lpszClassName = szWindowClass;
+	wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
+
+	/***********************************************************************
 
 	wc.style = CS_HREDRAW | CS_VREDRAW;
 	wc.lpfnWndProc = WindowProc;
@@ -53,24 +142,50 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	wc.lpszClassName = szAppName;
 	RegisterClass(&wc);
 
-	// Create the window
-	hwnd = CreateWindow(szAppName, szAppName, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 1280, 720, 0, 0, hInstance, 0);
-	ShowWindow(hwnd, SW_SHOW);
-	UpdateWindow(hwnd);
+	**********************************************************************/
 
-	while (GetMessage(&msg, 0, 0, 0))
-	{
-		if (!IsDialogMessage(hwnd, &msg))
-		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
-	}
-	return msg.wParam;
+	return RegisterClassExW(&wcex);
 }
 
-//Main Window Procedure WindowProc
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+//
+//   FUNCTION: InitInstance(HINSTANCE, int)
+//
+//   PURPOSE: Saves instance handle and creates main window
+//
+//   COMMENTS:
+//
+//        In this function, we save the instance handle in a global variable and
+//        create and display the main program window.
+//
+BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
+{
+	hInst = hInstance; // Store instance handle in our global variable
+					   // HWND hwnd = CreateWindow(szAppName, szAppName, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 1280, 720, 0, 0, hInstance, 0);
+	hWindow = CreateWindowW(szAppName, szAppName, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 1280, 720, nullptr, nullptr, hInstance, nullptr);
+	// HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+
+	if (!hWindow)
+	{
+		return FALSE;
+	}
+
+	ShowWindow(hWindow, nCmdShow);
+	UpdateWindow(hWindow);
+
+	return TRUE;
+}
+
+//
+//  FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
+//
+//  PURPOSE:  Processes messages for the main window.
+//
+//  WM_COMMAND  - process the application menu
+//  WM_PAINT    - Paint the main window
+//  WM_DESTROY  - post a quit message and return
+//
+//
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	HINSTANCE hInstance = GetModuleHandle(NULL);
 	//some buttons
@@ -78,94 +193,141 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPara
 	HWND hButtStopCam;
 	HWND hButtGrabFrame;
 
-	switch (message)                  /* handle the messages */
+	switch (message)
 	{
-		case WM_CTLCOLORSTATIC:
-			SetBkMode(hdc, TRANSPARENT);
-			return (LRESULT)CreateSolidBrush(0xFFFFFF);
+	case WM_CTLCOLORSTATIC:
+		SetBkMode(hdc, TRANSPARENT);
+		return (LRESULT)CreateSolidBrush(0xFFFFFF);
 
-		case WM_CREATE:
-		{
-			hButtStartCam = CreateWindowEx(0, L"BUTTON", L"Start Camera", WS_CHILD | WS_VISIBLE, 0, 0, 300, 60, hwnd, (HMENU)1, hInstance, 0);
-			hButtStopCam = CreateWindowEx(0, L"BUTTON", L"Stop Camera", WS_CHILD | WS_VISIBLE, 0, 75, 300, 60, hwnd, (HMENU)2, hInstance, 0);
-			hButtGrabFrame = CreateWindowEx(0, L"BUTTON", L"Snaphot", WS_CHILD | WS_VISIBLE, 0, 150, 300, 60, hwnd, (HMENU)3, hInstance, 0);
-			camhwnd = capCreateCaptureWindow(L"camera window", WS_CHILD, 400, 25, 640, 480, hwnd, 0);
-			SendMessage(camhwnd, WM_CAP_DRIVER_CONNECT, 0, 0);
-			SendMessage(camhwnd, WM_CAP_DLG_VIDEOSOURCE, 0, 0);
-			break;
-		}
+	case WM_CREATE:
+	{
+		hButtStartCam = CreateWindowEx(0, L"BUTTON", L"Start Camera", WS_CHILD | WS_VISIBLE, 0, 0, 300, 60, hWnd, (HMENU)1, hInstance, 0);
+		hButtStopCam = CreateWindowEx(0, L"BUTTON", L"Stop Camera", WS_CHILD | WS_VISIBLE, 0, 75, 300, 60, hWnd, (HMENU)2, hInstance, 0);
+		hButtGrabFrame = CreateWindowEx(0, L"BUTTON", L"Snaphot", WS_CHILD | WS_VISIBLE, 0, 150, 300, 60, hWnd, (HMENU)3, hInstance, 0);
+		camhwnd = capCreateCaptureWindow(L"camera window", WS_CHILD, 400, 25, 640, 480, hWnd, 0);
+		bCameraConnected = false;
+		// SendMessage(camhwnd, WM_CAP_DLG_VIDEOSOURCE, 0, 0);
+		// if (!bCameraConnected)
+		bCameraConnected = SendMessage(camhwnd, WM_CAP_DRIVER_CONNECT, 0, 0);
+		break;
+	}
 
-		case WM_COMMAND:
+
+	case WM_COMMAND:
+	{
+		int wmId = LOWORD(wParam);
+		// Parse the menu selections:
+		switch (wmId)
 		{
-			switch (LOWORD(wParam))
+			case IDM_ABOUT:
+				DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+				break;
+			case IDM_EXIT:
+				DestroyWindow(hWnd);
+				break;
+
+				// *******************************************************
+			case 1:
 			{
-				case 1:
-				{
-					ShowWindow(camhwnd, SW_SHOW);
-					SendMessage(camhwnd, WM_CAP_DRIVER_CONNECT, 0, 0);
-					SendMessage(camhwnd, WM_CAP_SET_SCALE, true, 0);
-					SendMessage(camhwnd, WM_CAP_SET_PREVIEWRATE, 66, 0);
-					SendMessage(camhwnd, WM_CAP_SET_PREVIEW, true, 0);
-					break;
-				}
 
-				case 2:
-				{
-					ShowWindow(camhwnd, SW_HIDE);
-					SendMessage(camhwnd, WM_CAP_DRIVER_DISCONNECT, 0, 0);
-					break;
-				}
-
-				case 3:
-				{
-					//Grab a Frame
-					SendMessage(camhwnd, WM_CAP_GRAB_FRAME, 0, 0);
-					//Copy the frame we have just grabbed to the clipboard
-					SendMessage(camhwnd, WM_CAP_EDIT_COPY, 0, 0);
-					//Copy the clipboard image data to a HBITMAP object called hbm
-					hdc = BeginPaint(camhwnd, &ps);
-					hdcMem = CreateCompatibleDC(hdc);
-
-					if (hdcMem != NULL)
-					{
-						if (OpenClipboard(camhwnd))
-						{
-							hbm = (HBITMAP)GetClipboardData(CF_BITMAP);
-							SelectObject(hdcMem, hbm);
-							GetClientRect(camhwnd, &rc);
-							CloseClipboard();
-						}
-					}
-
-					//Save hbm to a .bmp file called Frame.bmp
-					PBITMAPINFO pbi = CreateBitmapInfoStruct(hwnd, hbm);
-					CreateBMPFile(hwnd, L"Frame.bmp", pbi, hbm, hdcMem);
-					SendMessage(camhwnd, WM_CAP_DRIVER_CONNECT, 0, 0);
-					SendMessage(camhwnd, WM_CAP_SET_SCALE, true, 0);
-					SendMessage(camhwnd, WM_CAP_SET_PREVIEWRATE, 66, 0);
-					SendMessage(camhwnd, WM_CAP_SET_PREVIEW, true, 0);
-					break;
-				}
+				// SendMessage(camhwnd, WM_CAP_DLG_VIDEOSOURCE, 0, 0);
+				// if (!bCameraConnected)
+				SendMessage(camhwnd, WM_CAP_DRIVER_DISCONNECT, 0, 0);
+				bCameraConnected = SendMessage(camhwnd, WM_CAP_DRIVER_CONNECT, 0, 0);
+				SendMessage(camhwnd, WM_CAP_SET_SCALE, true, 0);
+				SendMessage(camhwnd, WM_CAP_SET_PREVIEWRATE, 66, 0);
+				SendMessage(camhwnd, WM_CAP_SET_PREVIEW, true, 0);
+				ShowWindow(camhwnd, SW_SHOW);
+				break;
 			}
-			break;
+
+			case 2:
+			{
+				ShowWindow(camhwnd, SW_HIDE);
+				SendMessage(camhwnd, WM_CAP_DRIVER_DISCONNECT, 0, 0);
+				bCameraConnected = false;
+				break;
+			}
+
+			case 3:
+			{
+				//Grab a Frame
+				SendMessage(camhwnd, WM_CAP_GRAB_FRAME, 0, 0);
+				//Copy the frame we have just grabbed to the clipboard
+				SendMessage(camhwnd, WM_CAP_EDIT_COPY, 0, 0);
+				//Copy the clipboard image data to a HBITMAP object called hbm
+				hdc = BeginPaint(camhwnd, &ps);
+				hdcMem = CreateCompatibleDC(hdc);
+
+				if (hdcMem != NULL)
+				{
+					if (OpenClipboard(camhwnd))
+					{
+						hbm = (HBITMAP)GetClipboardData(CF_BITMAP);
+						SelectObject(hdcMem, hbm);
+						GetClientRect(camhwnd, &rc);
+						CloseClipboard();
+					}
+				}
+
+				//Save hbm to a .bmp file with date/time based name
+				PBITMAPINFO pbi = CreateBitmapInfoStruct(hWnd, hbm);
+
+				__time64_t long_time;
+				struct tm newtime;
+				wchar_t buffer[80];
+
+				_time64(&long_time);
+				_localtime64_s(&newtime, &long_time); // Convert to local time.
+				int len = swprintf_s(buffer, 80, L"FG_%04d-%02d-%02d_%02d%02d.bmp", (newtime.tm_year + 1900), (newtime.tm_mon + 1), newtime.tm_mday, newtime.tm_hour, newtime.tm_min);
+
+				CreateBMPFile(hWnd, buffer, pbi, hbm, hdcMem);
+				SendMessage(camhwnd, WM_CAP_DRIVER_CONNECT, 0, 0);
+				SendMessage(camhwnd, WM_CAP_SET_SCALE, true, 0);
+				SendMessage(camhwnd, WM_CAP_SET_PREVIEWRATE, 66, 0);
+				SendMessage(camhwnd, WM_CAP_SET_PREVIEW, true, 0);
+				break;
+			}
 		}
-
-		case WM_DESTROY:
-		{
-			SendMessage(camhwnd, WM_CAP_DRIVER_DISCONNECT, 0, 0);
-			PostQuitMessage(0);   /* send a WM_QUIT to the message queue */
-			break;
-		}
-
-		default:              /* for messages that we don't deal with */
-			return DefWindowProc(hwnd, message, wParam, lParam);
-
+	}
+	break;
+	/*
+	case WM_PAINT:
+	{
+		PAINTSTRUCT ps;
+		HDC hdc = BeginPaint(hWnd, &ps);
+		// TODO: Add any drawing code that uses hdc here...
+		EndPaint(hWnd, &ps);
+	} */
+	break;
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		break;
+	default:
+		return DefWindowProc(hWnd, message, wParam, lParam);
 	}
 	return 0;
 }
 
+// Message handler for about box.
+INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	UNREFERENCED_PARAMETER(lParam);
+	switch (message)
+	{
+	case WM_INITDIALOG:
+		return (INT_PTR)TRUE;
 
-
+	case WM_COMMAND:
+		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+		{
+			EndDialog(hDlg, LOWORD(wParam));
+			return (INT_PTR)TRUE;
+		}
+		break;
+	}
+	return (INT_PTR)FALSE;
+}
 
 void CreateBMPFile(HWND hwnd, LPTSTR pszFile, PBITMAPINFO pbi, HBITMAP hBMP, HDC hDC)
 {
@@ -203,12 +365,13 @@ void CreateBMPFile(HWND hwnd, LPTSTR pszFile, PBITMAPINFO pbi, HBITMAP hBMP, HDC
 	}
 
 	hdr.bfType = 0x4d42;  // File type designator "BM" 0x42 = "B" 0x4d = "M"
-	// Compute the size of the entire file.
+						  // Compute the size of the entire file.
 	hdr.bfSize = (DWORD)(sizeof(BITMAPFILEHEADER) + pbih->biSize + pbih->biClrUsed * sizeof(RGBQUAD) + pbih->biSizeImage);
 	hdr.bfReserved1 = 0;
 	hdr.bfReserved2 = 0;
 	// Compute the offset to the array of color indices.
 	hdr.bfOffBits = (DWORD) sizeof(BITMAPFILEHEADER) + pbih->biSize + pbih->biClrUsed * sizeof(RGBQUAD);
+
 	// Copy the BITMAPFILEHEADER into the .BMP file.
 	if (!WriteFile(hf, (LPVOID)&hdr, sizeof(BITMAPFILEHEADER), (LPDWORD)&dwTmp, NULL))
 	{
@@ -235,6 +398,7 @@ void CreateBMPFile(HWND hwnd, LPTSTR pszFile, PBITMAPINFO pbi, HBITMAP hBMP, HDC
 	{
 		MessageBox(hwnd, L"CloseHandle", L"Error", MB_OK);
 	}
+
 	// Free memory.
 	GlobalFree((HGLOBAL)lpBits);
 }
@@ -272,7 +436,8 @@ PBITMAPINFO CreateBitmapInfoStruct(HWND hwnd, HBITMAP hBmp)
 	if (cClrBits != 24)
 	{
 		pbmi = (PBITMAPINFO)LocalAlloc(LPTR, sizeof(BITMAPINFOHEADER) + sizeof(RGBQUAD) * (1 << cClrBits));
-	}else // There is no RGBQUAD array for the 24-bit-per-pixel format.
+	}
+	else // There is no RGBQUAD array for the 24-bit-per-pixel format.
 		pbmi = (PBITMAPINFO)LocalAlloc(LPTR, sizeof(BITMAPINFOHEADER));
 
 	// Initialize the fields in the BITMAPINFO structure.
@@ -304,3 +469,4 @@ PBITMAPINFO CreateBitmapInfoStruct(HWND hwnd, HBITMAP hBmp)
 
 	return pbmi; //return BITMAPINFO
 }
+
