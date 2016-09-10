@@ -30,12 +30,18 @@
     <ClInclude Include="FrameGrab.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ProcessImage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FrameGrab.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ProcessImage.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
